@@ -6,6 +6,10 @@
   "scripts": {
     "start": "node server.js"
   },
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  },
   "keywords": ["bookchin", "catan", "strategy", "politics", "ecology"],
   "author": "",
   "license": "MIT",
