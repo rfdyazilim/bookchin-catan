@@ -1,0 +1,23 @@
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Environment
+.env
+.env.local
+
+# Temporary files
+tmp_rovodev_*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup
+server_backup.js
+server_before_room_fix.js
+server_new.js
+
+# Logs
+*.log

@@ -1,0 +1,16 @@
+{
+  "name": "bookchin-kent-ekolojisi",
+  "version": "2.0.0",
+  "description": "Bookchin: Kent Ekolojisi - Catan-style politik ekoloji oyunu",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["bookchin", "catan", "strategy", "politics", "ecology"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2"
+  }
+}

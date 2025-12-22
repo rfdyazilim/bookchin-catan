@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Bookchin: Kent Ekolojisi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    
+    <!-- LOBBY -->
+    <div id="lobby" class="screen">
+      <div class="lobby-container">
+        <h1>🏛️ Bookchin: Kent Ekolojisi</h1>
+        <p class="subtitle">Murray Bookchin'in politik ekolojisi üzerine strateji oyunu</p>
+        
+        <div class="join-panel">
+          <h2>Oyuna Katıl</h2>
+          <input type="text" id="roomCode" placeholder="Oda Kodu (4 haneli)" maxlength="4" pattern="[0-9]{4}" style="text-align: center; font-size: 1.2em; letter-spacing: 0.3em;">
+          <input type="text" id="playerName" placeholder="İsminiz" maxlength="20">
+          <button id="joinBtn" class="btn btn-primary">Katıl</button>
+          <p style="color: #bcaaa4; font-size: 0.9em; margin-top: 10px;">Aynı oda kodunu giren oyuncular aynı oyunda olur. Fraksiyonunuz otomatik atanacak.</p>
+        </div>
+        
+        <div class="players-list">
+          <h3>Lobideki Oyuncular</h3>
+          <div id="lobbyPlayers"></div>
+        </div>
+        
+        <button id="startBtn" class="btn btn-success" disabled>Oyunu Başlat (min. 2 oyuncu)</button>
+      </div>
+    </div>
+    
+    <!-- GAME -->
+    <div id="game" class="screen" style="display: none;">
+      <div class="game-layout">
+        
+        <!-- SOL: Harita -->
+        <div class="map-container">
+          <h2 id="phaseTitle">Kurulum Aşaması</h2>
+          <svg id="hexMap" viewBox="0 0 1200 1000"></svg>
+        </div>
+        
+        <!-- SAĞ: Panel -->
+        <div class="side-panel">
+          
+          <!-- Oyuncular -->
+          <div class="panel">
+            <h3>Oyuncular</h3>
+            <div id="playersPanel"></div>
+          </div>
+          
+          <!-- Durum -->
+          <div class="panel">
+            <h3>Durum</h3>
+            <div class="status-line"><strong>Ben:</strong> <span id="selfInfo">-</span></div>
+            <div class="status-line"><strong>Faz:</strong> <span id="phaseInfo">Lobby</span></div>
+            <div class="status-line"><strong>Tur:</strong> <span id="turnInfo">-</span></div>
+            <div class="status-line"><strong>Aktif:</strong> <span id="activeInfo">-</span></div>
+            
+            <div class="citizenship-bar">
+              <strong>Yurttaşlık İndeksi</strong>
+              <div class="citizenship-track">
+                <div id="citizenshipFill" class="citizenship-fill"></div>
+                <span id="citizenshipValue" class="citizenship-value">5</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Kaynaklarım -->
+          <div class="panel">
+            <h3>Kaynaklarım</h3>
+            <div id="resourcesPanel" class="resources-grid">
+              <div class="resource-item">
+                <span class="resource-icon">🏛️</span>
+                <span class="resource-name">Civic</span>
+                <span class="resource-amount" id="civic">0</span>
+              </div>
+              <div class="resource-item">
+                <span class="resource-icon">🌿</span>
+                <span class="resource-name">Eco</span>
+                <span class="resource-amount" id="eco">0</span>
+              </div>
+              <div class="resource-item">
+                <span class="resource-icon">💰</span>
+                <span class="resource-name">Capital</span>
+                <span class="resource-amount" id="capital">0</span>
+              </div>
+              <div class="resource-item">
+                <span class="resource-icon">⚙️</span>
+                <span class="resource-name">Tech</span>
+                <span class="resource-amount" id="tech">0</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Maliyetler -->
+          <div class="panel">
+            <h3>Maliyetler</h3>
+            <div id="costsPanel" class="costs-info">
+              <div class="cost-item">
+                <strong>Yerleşim:</strong>
+                <span id="settlementCost">-</span>
+              </div>
+              <div class="cost-item">
+                <strong>Yol:</strong>
+                <span id="roadCost">-</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Aksiyonlar -->
+          <div class="panel">
+            <h3>Aksiyonlar</h3>
+            <div id="actionsPanel">
+              <button id="confirmPlacementBtn" class="btn btn-action" style="display:none; background: #4caf50;">✓ Yerleştir</button>
+              <button id="endSetupBtn" class="btn btn-action" style="display:none">Kurulumu Bitir</button>
+              <button id="expandBtn" class="btn btn-action" style="display:none">Genişle (Build)</button>
+              <button id="organizeBtn" class="btn btn-action" style="display:none">Örgütlen (Harvest)</button>
+              <button id="tradeBtn" class="btn btn-action" style="display:none">Takas (4:1 Kasa)</button>
+              <button id="playerTradeBtn" class="btn btn-action" style="display:none">Oyuncu ile Takas</button>
+              <button id="endTurnBtn" class="btn btn-action" style="display:none">Turu Bitir</button>
+            </div>
+            <div id="actionHint" class="action-hint"></div>
+          </div>
+          
+          <!-- Log -->
+          <div class="panel log-panel">
+            <h3>Oyun Günlüğü</h3>
+            <div id="logPanel" class="log-content"></div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <!-- Trade Modal (4:1 Bank) -->
+  <div id="tradeModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>Takas (4:1 Kasa)</h2>
+      <div id="tradeStep1" class="trade-step">
+        <p><strong>Hangi kaynağı vermek istersiniz?</strong> (4 tane)</p>
+        <div id="tradeGiveOptions" class="trade-options"></div>
+      </div>
+      <div id="tradeStep2" class="trade-step" style="display: none;">
+        <p><strong>Hangi kaynağı almak istersiniz?</strong> (1 tane)</p>
+        <div id="tradeReceiveOptions" class="trade-options"></div>
+      </div>
+      <button id="tradeCancelBtn" class="btn btn-action">İptal</button>
+    </div>
+  </div>
+  
+  <!-- Player Trade Modal -->
+  <div id="playerTradeModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>Oyuncu ile Takas</h2>
+      <div id="playerTradeStep1" class="trade-step">
+        <p><strong>Hangi oyuncu ile takas yapmak istersiniz?</strong></p>
+        <div id="playerSelectOptions" class="trade-options"></div>
+      </div>
+      <div id="playerTradeStep2" class="trade-step" style="display: none;">
+        <p><strong>Ne vermek istersiniz?</strong></p>
+        <div id="playerTradeGiveOptions" class="trade-options"></div>
+      </div>
+      <div id="playerTradeStep3" class="trade-step" style="display: none;">
+        <p><strong>Ne almak istersiniz?</strong></p>
+        <div id="playerTradeReceiveOptions" class="trade-options"></div>
+      </div>
+      <button id="playerTradeCancelBtn" class="btn btn-action">İptal</button>
+    </div>
+  </div>
+  
+  <!-- Trade Offer Modal (for receiving player) -->
+  <div id="tradeOfferModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>Takas Teklifi</h2>
+      <div id="tradeOfferContent" style="padding: 20px; text-align: center;">
+        <!-- Dinamik içerik -->
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button id="acceptTradeBtn" class="btn btn-action" style="background: #4caf50;">✓ Kabul Et</button>
+        <button id="rejectTradeBtn" class="btn btn-action" style="background: #f44336;">✗ Reddet</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="client.js"></script>
+</body>
+</html>
