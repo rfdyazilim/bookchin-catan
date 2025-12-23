@@ -512,13 +512,9 @@ function renderMap() {
       // Eğer bu vertex son tıklanan ise farklı göster
       if (lastClickedVertex === vertex.id) {
         circle.style.fill = '#ffeb3b'; // Sarı - seçili
-        circle.style.stroke = '#ffeb3b';
-        circle.style.strokeWidth = '4';
         circle.setAttribute('r', 14);
       } else {
-        circle.style.fill = 'none'; // İçi boş
-        circle.style.stroke = '#ffd54f'; // Sarı çerçeve
-        circle.style.strokeWidth = '3';
+        circle.style.fill = '#9e9e9e'; // Gri - tıklanabilir
         circle.setAttribute('r', 12);
       }
       
@@ -548,13 +544,9 @@ function renderMap() {
       // Eğer bu vertex seçili ise farklı göster
       if (pendingExpandSettlementId === vertex.id) {
         circle.style.fill = '#ffeb3b'; // Sarı - seçili
-        circle.style.stroke = '#ffeb3b';
-        circle.style.strokeWidth = '4';
         circle.setAttribute('r', 14);
       } else {
-        circle.style.fill = 'none'; // İçi boş
-        circle.style.stroke = '#ffd54f'; // Sarı çerçeve
-        circle.style.strokeWidth = '3';
+        circle.style.fill = '#9e9e9e'; // Gri - tıklanabilir
         circle.setAttribute('r', 12);
       }
       
@@ -796,7 +788,7 @@ function renderActions() {
         if (lastClickedVertex !== null) {
           actionHint.innerHTML = `<strong style="color: #ffeb3b;">Yerleşim SEÇİLDİ!</strong> "✓ Yerleştir" butonuna basın (${setupSettlements}/2)`;
         } else {
-          actionHint.innerHTML = `<strong>SıRANıZ!</strong> <span style="color: #4a9eff;">Mavi noktaya</span> tıklayın (${setupSettlements}/2)<br><small>Sarı = seçili</small>`;
+          actionHint.innerHTML = `<strong>SıRANıZ!</strong> <span style="color: #9e9e9e;">Gri noktaya</span> tıklayın (${setupSettlements}/2)<br><small>Sarı = seçili</small>`;
         }
       } else if (setupRoads < 2) {
         selectedMode = 'road';
@@ -840,7 +832,7 @@ function renderActions() {
         actionHint.innerHTML = '<strong style="color: #ffeb3b;">Yol SEÇİLDİ!</strong> "✓ Yerleştir" butonuna basın';
       }
     } else if (selectedMode === 'expand-settlement') {
-      actionHint.innerHTML = 'Haritadan <span style="color: #4a9eff;">mavi noktaya</span> tıklayın (yerleşim kur)<br><small>Sarı = seçili</small>';
+      actionHint.innerHTML = 'Haritadan <span style="color: #9e9e9e;">gri noktaya</span> tıklayın (yerleşim kur)<br><small>Sarı = seçili</small>';
     } else if (selectedMode === 'expand-road') {
       actionHint.innerHTML = 'Haritadan <span style="color: #ff9800;">turuncu çizgiye</span> tıklayın (yol kur)<br><small>Sarı = seçili</small>';
     } else {
