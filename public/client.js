@@ -57,6 +57,7 @@ const tradeBtn = document.getElementById('tradeBtn');
 const playerTradeBtn = document.getElementById('playerTradeBtn');
 const endTurnBtn = document.getElementById('endTurnBtn');
 const actionHint = document.getElementById('actionHint');
+const leaveGameBtn = document.getElementById('leaveGameBtn');
 
 // Resource displays
 const civicSpan = document.getElementById('civic');
@@ -896,6 +897,11 @@ joinBtn.addEventListener('click', () => {
   const name = playerNameInput.value.trim();
   const roomCode = roomCodeInput.value.trim();
   
+  console.log('=== JOIN BUTTON CLICKED ===');
+  console.log('Name:', name);
+  console.log('Room Code:', roomCode);
+  console.log('WebSocket ready:', ws?.readyState);
+  
   if (!roomCode || roomCode.length !== 4 || !/^\d{4}$/.test(roomCode)) {
     alert('Lütfen 4 haneli bir oda kodu girin (sadece rakam)');
     return;
@@ -906,6 +912,7 @@ joinBtn.addEventListener('click', () => {
     return;
   }
   
+  console.log('Sending join message...');
   send({ type: 'join', name, roomCode });
 });
 
@@ -992,6 +999,21 @@ endTurnBtn.addEventListener('click', () => {
 
 playerNameInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') joinBtn.click();
+});
+
+leaveGameBtn.addEventListener('click', () => {
+  if (confirm('Oyundan çıkmak istediğinize emin misiniz?')) {
+    // localStorage'ı temizle
+    localStorage.clear();
+    
+    // WebSocket'i kapat
+    if (ws) {
+      ws.close();
+    }
+    
+    // Sayfayı yenile (lobby'ye dönecek)
+    window.location.reload();
+  }
 });
 
 // ========== TRADE MODAL ==========
