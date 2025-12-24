@@ -394,6 +394,12 @@ function harvestFromSettlement(room, playerId, vertexId) {
     return resources;
   }
   
+  // Şehir mi köy mü kontrol et
+  const isCity = player.cityVertices.includes(vertexId);
+  const multiplier = isCity ? 2 : 1;
+  
+  console.log(`Settlement type: ${isCity ? 'CITY (x2)' : 'Village (x1)'}`);
+  
   // TÜM KAYNAKLARI ÜRETEBİLİR (fraksiyon kısıtı kaldırıldı)
   vertex.hexIds.forEach(hexId => {
     const tile = room.tiles.find(t => t.id === hexId);
@@ -405,8 +411,8 @@ function harvestFromSettlement(room, playerId, vertexId) {
     console.log(`Checking hex ${hexId}: type=${tile.type}`);
     
     const key = tile.type.toLowerCase();
-    resources[key]++;
-    console.log(`✓ Added 1 ${key} from hex ${hexId}`);
+    resources[key] += multiplier;
+    console.log(`✓ Added ${multiplier} ${key} from hex ${hexId}`);
   });
   
   console.log(`Final harvest result:`, resources);
@@ -490,8 +496,8 @@ function updateLongestRoad(room) {
     }
   });
   
-  // Minimum 5 yol olmalı longest road için
-  if (newLongestLength >= 5 && newLongestPlayerId !== room.longestRoadPlayerId) {
+  // Minimum 4 yol olmalı longest road için
+  if (newLongestLength >= 4 && newLongestPlayerId !== room.longestRoadPlayerId) {
     const oldHolder = room.longestRoadPlayerId;
     room.longestRoadPlayerId = newLongestPlayerId;
     room.longestRoadLength = newLongestLength;
@@ -575,9 +581,11 @@ function sanitizeState(room) {
       faction: p.faction,
       resources: p.resources,
       settlements: p.settlements,
+      cities: p.cities || 0,
+      cityVertices: p.cityVertices || [],
       setupSettlements: p.setupSettlements || 0,
       setupRoads: p.setupRoads || 0,
-      points: p.settlements + (room.longestRoadPlayerId === p.id ? 2 : 0)
+      points: p.settlements + (p.cities * 2) + (room.longestRoadPlayerId === p.id ? 2 : 0)
     })),
     tiles: room.tiles,
     vertices: room.vertices,
@@ -605,6 +613,7 @@ function broadcast(message, roomCode) {
 }
 
 function sendLog(message, roomCode) {
+  // roomCode varsa sadece o odaya gönder
   broadcast({ type: 'log', message }, roomCode);
 }
 
@@ -705,9 +714,11 @@ function handleJoin(ws, msg) {
     faction: null,
     resources: { civic: 0, eco: 0, capital: 0, tech: 0 },
     settlements: 0,
+    cities: 0, // Şehir sayısı
     setupSettlements: 0,
     setupRoads: 0,
-    usedSettlements: [] // Bu turda harvest edilen köyler
+    usedSettlements: [], // Bu turda harvest edilen köyler
+    cityVertices: [] // Şehir olan vertex ID'leri
   };
   
   room.players.push(player);
@@ -865,7 +876,54 @@ function handleExpand(ws, clientInfo, msg) {
   
   const player = room.players.find(p => p.id === playerId);
   
-  if (msg.expandType === 'settlement') {
+  if (msg.expandType === 'city') {
+    // Şehir yükseltme
+    const vertexId = msg.vertexId;
+    
+    const cityCost = { capital: 2, eco: 2, tech: 2, civic: 2 };
+    let canAfford = true;
+    Object.entries(cityCost).forEach(([resource, amount]) => {
+      if (player.resources[resource] < amount) {
+        canAfford = false;
+      }
+    });
+    
+    if (!canAfford) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Yeterli kaynağınız yok! (2 capital + 2 eco + 2 tech + 2 civic gerekli)' }));
+      return;
+    }
+    
+    const vertex = room.vertices.find(v => v.id === vertexId);
+    
+    if (!vertex || vertex.ownerId !== playerId) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Bu sizin yerleşiminiz değil!' }));
+      return;
+    }
+    
+    if (player.cityVertices.includes(vertexId)) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Bu yerleşim zaten şehir!' }));
+      return;
+    }
+    
+    // Kaynakları harca
+    Object.entries(cityCost).forEach(([resource, amount]) => {
+      player.resources[resource] -= amount;
+    });
+    
+    // Şehir listesine ekle
+    player.cityVertices.push(vertexId);
+    player.cities++;
+    
+    // Kaynak kullanımını kaydet (citizenship için)
+    room.turnActions.push({
+      type: 'city',
+      playerId,
+      resourcesUsed: cityCost
+    });
+    
+    sendLog(`${player.name} yerleşimi şehre yükseltti! 🏙️`, room.code);
+    
+  } else if (msg.expandType === 'settlement') {
     const vertexId = msg.vertexId;
     
     const cost = player.faction.settlementCost;
@@ -989,7 +1047,9 @@ function handleOrganize(ws, clientInfo, vertexIds) {
   }
   
   const player = room.players.find(p => p.id === playerId);
-  const maxSlots = Math.max(1, Math.floor(player.settlements / 2));
+  
+  // YENİ SİSTEM: Sadece 1 yerleşimden harvest yapılabilir
+  const maxSlots = 1;
   
   // DÖNGÜ KONTROLÜ: Bu turda kullanılan köyler tekrar kullanılamaz
   const alreadyUsed = vertexIds.filter(vId => player.usedSettlements.includes(vId));
@@ -1003,10 +1063,10 @@ function handleOrganize(ws, clientInfo, vertexIds) {
   
   console.log('Player:', player.name);
   console.log('Settlements:', player.settlements);
-  console.log('Max slots:', maxSlots);
+  console.log('Max slots (fixed):', maxSlots);
   
   if (vertexIds.length > maxSlots) {
-    ws.send(JSON.stringify({ type: 'error', message: `Can only organize ${maxSlots} settlements` }));
+    ws.send(JSON.stringify({ type: 'error', message: `En fazla ${maxSlots} yerleşimden harvest yapabilirsiniz` }));
     return;
   }
   
@@ -1211,7 +1271,7 @@ function handleEndTurn(ws, clientInfo) {
   
   // KAZANMA KONTROLÜ: 10 puan olan var mı?
   const currentPlayer = room.players[room.currentPlayerIndex];
-  const currentPoints = currentPlayer.settlements + (room.longestRoadPlayerId === currentPlayer.id ? 2 : 0);
+  const currentPoints = currentPlayer.settlements + (currentPlayer.cities * 2) + (room.longestRoadPlayerId === currentPlayer.id ? 2 : 0);
   
   if (currentPoints >= 10) {
     room.winnerId = currentPlayer.id;

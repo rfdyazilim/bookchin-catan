@@ -22,12 +22,13 @@ let myPlayerId = null;
 let myRoomCode = null;
 let gameState = null;
 let factions = [];
-let selectedMode = null; // 'settlement', 'road', 'organize', 'expand-settlement', 'expand-road'
+let selectedMode = null; // 'settlement', 'road', 'organize', 'expand-settlement', 'expand-road', 'upgrade-city'
 let selectedVertices = []; // For organize mode
 let lastClickedVertex = null; // Son tıklanan vertex
 let lastClickedEdge = null; // Son tıklanan edge
 let pendingExpandRoadId = null; // Build fazında seçilen road
 let pendingExpandSettlementId = null; // Build fazında seçilen settlement
+let pendingUpgradeCityId = null; // Şehire yükseltilecek settlement
 
 // DOM Elements
 const lobbyScreen = document.getElementById('lobby');
@@ -491,18 +492,41 @@ function renderMap() {
     let className = 'vertex';
     if (vertex.ownerId !== null) {
       const owner = gameState.players.find(p => p.id === vertex.ownerId);
+      const isCity = owner.cityVertices && owner.cityVertices.includes(vertex.id);
+      
       className += ` owned settlement-${owner.faction.id}`;
-      circle.setAttribute('r', 18); // x1.5 (15 × 1.2 = 18)
+      
+      if (isCity) {
+        // Şehir - daha büyük
+        circle.setAttribute('r', 22);
+        circle.style.strokeWidth = '3';
+        circle.style.stroke = '#ffeb3b'; // Altın sarısı çerçeve
+      } else {
+        // Normal yerleşim
+        circle.setAttribute('r', 18);
+      }
       
       // Fraksiyon ikonu ekle (text olarak)
       const iconText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       iconText.setAttribute('x', pos.x);
       iconText.setAttribute('y', pos.y + 7);
       iconText.setAttribute('text-anchor', 'middle');
-      iconText.setAttribute('font-size', '24'); // x1.5 (20 × 1.2 = 24)
+      iconText.setAttribute('font-size', isCity ? '28' : '24'); // Şehir daha büyük
       iconText.style.pointerEvents = 'none';
       iconText.textContent = owner.faction.icon;
       hexMap.appendChild(iconText);
+      
+      // Şehir için ekstra yıldız işareti
+      if (isCity) {
+        const starText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        starText.setAttribute('x', pos.x);
+        starText.setAttribute('y', pos.y - 25);
+        starText.setAttribute('text-anchor', 'middle');
+        starText.setAttribute('font-size', '20');
+        starText.style.pointerEvents = 'none';
+        starText.textContent = '⭐';
+        hexMap.appendChild(starText);
+      }
     }
     circle.setAttribute('class', className);
     
@@ -569,6 +593,37 @@ function renderMap() {
       };
     }
     
+    // Şehir yükseltme modu
+    if (selectedMode === 'upgrade-city' && vertex.ownerId === myPlayerId) {
+      const me = gameState.players.find(p => p.id === myPlayerId);
+      const isAlreadyCity = me.cityVertices && me.cityVertices.includes(vertex.id);
+      
+      if (!isAlreadyCity) {
+        circle.style.cursor = 'pointer';
+        
+        if (pendingUpgradeCityId === vertex.id) {
+          circle.style.stroke = '#ffeb3b';
+          circle.style.strokeWidth = '6';
+          circle.setAttribute('r', 22);
+        }
+        
+        circle.onclick = () => {
+          console.log('City upgrade selected:', vertex.id);
+          
+          if (pendingUpgradeCityId === vertex.id) {
+            pendingUpgradeCityId = null;
+            console.log('City upgrade cancelled');
+          } else {
+            pendingUpgradeCityId = vertex.id;
+            console.log('City upgrade pending confirmation');
+          }
+          
+          renderActions();
+          renderMap();
+        };
+      }
+    }
+    
     hexMap.appendChild(circle);
     if (selectedMode === 'organize' && vertex.ownerId === myPlayerId) {
       circle.style.cursor = 'pointer';
@@ -627,7 +682,7 @@ function getVertexPixelPosition(vertex) {
 
 function toggleOrganizeVertex(vertexId) {
   const player = gameState.players.find(p => p.id === myPlayerId);
-  const maxSlots = Math.max(1, Math.floor(player.settlements / 2));
+  const maxSlots = 1; // Sadece 1 yerleşim
   
   const idx = selectedVertices.indexOf(vertexId);
   if (idx > -1) {
@@ -668,7 +723,7 @@ function renderPlayers() {
         <span class="player-icon">${player.faction.icon}</span>
         <div>
           <strong>${player.name}${isMe}</strong>
-          <div class="player-info">${player.settlements} puan</div>
+          <div class="player-info">${player.points} puan</div>
         </div>
       </div>
     `;
@@ -824,18 +879,23 @@ function renderActions() {
     
     // Expand modunda seçim yapılmışsa onay butonunu göster
     if ((selectedMode === 'expand-settlement' && pendingExpandSettlementId !== null) ||
-        (selectedMode === 'expand-road' && pendingExpandRoadId !== null)) {
+        (selectedMode === 'expand-road' && pendingExpandRoadId !== null) ||
+        (selectedMode === 'upgrade-city' && pendingUpgradeCityId !== null)) {
       confirmPlacementBtn.style.display = 'block';
       
       if (selectedMode === 'expand-settlement') {
         actionHint.innerHTML = '<strong style="color: #ffeb3b;">Yerleşim SEÇİLDİ!</strong> "✓ Yerleştir" butonuna basın';
-      } else {
+      } else if (selectedMode === 'expand-road') {
         actionHint.innerHTML = '<strong style="color: #ffeb3b;">Yol SEÇİLDİ!</strong> "✓ Yerleştir" butonuna basın';
+      } else if (selectedMode === 'upgrade-city') {
+        actionHint.innerHTML = '<strong style="color: #ffeb3b;">Şehir Yükseltme SEÇİLDİ!</strong> "✓ Yerleştir" butonuna basın';
       }
     } else if (selectedMode === 'expand-settlement') {
       actionHint.innerHTML = 'Haritadan <span style="color: #9e9e9e;">gri noktaya</span> tıklayın (yerleşim kur)<br><small>Sarı = seçili</small>';
     } else if (selectedMode === 'expand-road') {
       actionHint.innerHTML = 'Haritadan <span style="color: #ff9800;">turuncu çizgiye</span> tıklayın (yol kur)<br><small>Sarı = seçili</small>';
+    } else if (selectedMode === 'upgrade-city') {
+      actionHint.innerHTML = 'Kendi yerleşiminize tıklayın (şehire yükselt)<br><small>Maliyet: 2 capital + 2 eco + 2 tech + 2 civic</small>';
     } else {
       actionHint.textContent = 'Genişle (yeni yerleşim/yol) VEYA Örgütlen (kaynak topla)';
     }
@@ -888,6 +948,12 @@ confirmPlacementBtn.addEventListener('click', () => {
     pendingExpandRoadId = null;
     selectedMode = null;
     renderMap();
+  } else if (selectedMode === 'upgrade-city' && pendingUpgradeCityId !== null) {
+    console.log('Sending city upgrade:', pendingUpgradeCityId);
+    send({ type: 'expand', expandType: 'city', vertexId: pendingUpgradeCityId });
+    pendingUpgradeCityId = null;
+    selectedMode = null;
+    renderMap();
   } else {
     console.log('No valid selection to confirm');
   }
@@ -926,7 +992,7 @@ endSetupBtn.addEventListener('click', () => {
 
 expandBtn.addEventListener('click', () => {
   // Modal yerine basit seçim
-  const choice = prompt('Ne yapmak istersiniz?\n1 = Yerleşim kur (maliyet: fraksiyona göre değişir)\n2 = Yol kur (maliyet: 1 tech + 1 capital)\n\n(1 veya 2 yazın)');
+  const choice = prompt('Ne yapmak istersiniz?\n1 = Yerleşim kur (maliyet: fraksiyona göre değişir)\n2 = Yol kur (maliyet: 1 tech + 1 capital)\n3 = Şehire yükselt (2 capital + 2 eco + 2 tech + 2 civic)\n\n(1, 2 veya 3 yazın)');
   
   if (choice === '1') {
     selectedMode = 'expand-settlement';
@@ -934,6 +1000,9 @@ expandBtn.addEventListener('click', () => {
   } else if (choice === '2') {
     selectedMode = 'expand-road';
     actionHint.textContent = 'Genişle: Haritadan yeni yol seçin (boş kenar)';
+  } else if (choice === '3') {
+    selectedMode = 'upgrade-city';
+    actionHint.textContent = 'Şehir Yükselt: Kendi yerleşiminize tıklayın';
   } else {
     return;
   }
@@ -944,9 +1013,8 @@ expandBtn.addEventListener('click', () => {
 organizeBtn.addEventListener('click', () => {
   selectedMode = 'organize';
   selectedVertices = [];
-  const me = gameState.players.find(p => p.id === myPlayerId);
-  const maxSlots = Math.max(1, Math.floor(me.settlements / 2));
-  actionHint.textContent = `Örgütlen: ${maxSlots} köy seçin`;
+  const maxSlots = 1; // Sadece 1 yerleşim
+  actionHint.textContent = `Örgütlen: 1 yerleşim seçin`;
   renderMap();
 });
 
